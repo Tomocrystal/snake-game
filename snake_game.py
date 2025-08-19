@@ -71,11 +71,20 @@ class Game:
         self.food = Food()
         self.score = 0
         self.font = pygame.font.Font(None, 36)
+        self.running = True
+        self.paused = False
+        self.key_map = {
+            pygame.K_UP: pygame.Vector2(0, -1),
+            pygame.K_DOWN: pygame.Vector2(0, 1),
+            pygame.K_LEFT: pygame.Vector2(-1, 0),
+            pygame.K_RIGHT: pygame.Vector2(1, 0),
+        }
 
     def update(self):
-        self.snake.move_snake()
-        self.check_collision()
-        self.check_fail()
+        if not self.paused:
+            self.snake.move_snake()
+            self.check_collision()
+            self.check_fail()
 
     def draw_elements(self, screen):
         screen.fill(BLACK)
@@ -84,6 +93,12 @@ class Game:
         
         score_text = self.font.render(f"分数: {self.score}", True, WHITE)
         screen.blit(score_text, (10, 10))
+
+        if self.paused:
+            pause_font = pygame.font.Font(None, 72)
+            pause_surface = pause_font.render("已暂停", True, WHITE)
+            pause_rect = pause_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
+            screen.blit(pause_surface, pause_rect)
 
     def check_collision(self):
         if self.food.pos == self.snake.body[0]:
@@ -100,8 +115,21 @@ class Game:
             self.game_over()
 
     def game_over(self):
-        pygame.quit()
-        sys.exit()
+        self.running = False
+
+    def toggle_pause(self):
+        self.paused = not self.paused
+
+    def handle_input(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                self.toggle_pause()
+            elif not self.running and event.key == pygame.K_r:
+                self.__init__()
+            elif self.running and not self.paused and event.key in self.key_map:
+                new_direction = self.key_map[event.key]
+                if new_direction != -self.snake.direction:
+                    self.snake.direction = new_direction
 
 def main():
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -118,23 +146,30 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            game.handle_input(event)
+
+        if game.running:
             if event.type == SCREEN_UPDATE:
                 game.update()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    if game.snake.direction.y != 1:
-                        game.snake.direction = pygame.Vector2(0, -1)
-                if event.key == pygame.K_DOWN:
-                    if game.snake.direction.y != -1:
-                        game.snake.direction = pygame.Vector2(0, 1)
-                if event.key == pygame.K_RIGHT:
-                    if game.snake.direction.x != -1:
-                        game.snake.direction = pygame.Vector2(1, 0)
-                if event.key == pygame.K_LEFT:
-                    if game.snake.direction.x != 1:
-                        game.snake.direction = pygame.Vector2(-1, 0)
-        
-        game.draw_elements(screen)
+            game.draw_elements(screen)
+        else:
+            screen.fill(BLACK)
+            title_font = pygame.font.Font(None, 72)
+            score_font = pygame.font.Font(None, 48)
+            prompt_font = pygame.font.Font(None, 36)
+            
+            title_surface = title_font.render("游戏结束", True, RED)
+            score_surface = score_font.render(f"最终得分: {game.score}", True, WHITE)
+            prompt_surface = prompt_font.render("按 R 键重新开始", True, WHITE)
+            
+            title_rect = title_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 60))
+            score_rect = score_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
+            prompt_rect = prompt_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 60))
+            
+            screen.blit(title_surface, title_rect)
+            screen.blit(score_surface, score_rect)
+            screen.blit(prompt_surface, prompt_rect)
+
         pygame.display.flip()
         clock.tick(60)
     
